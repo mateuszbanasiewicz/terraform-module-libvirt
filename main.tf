@@ -21,7 +21,11 @@ resource "libvirt_network" "network" {
   dns {
     enabled = true
     forwarders {
-      address = "192.168.1.199"
+      address = "8.8.8.8"
+    }
+    hosts {
+      hostname = format("xeon.%s.%s", var.project_name, var.domain)
+      ip = "192.168.1.199"
     }
   }
   dhcp {
