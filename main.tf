@@ -31,7 +31,7 @@ resource "libvirt_network" "network" {
 
 data "template_file" "cloudinit_cfg_file" {
   for_each  = var.vms
-  template = file("${path.module}/config.cfg")
+  template = file("${path.module}/cloud-init/config.cfg")
   vars = {
     hostname = format("%s.%s.%s", each.key, var.project_name, var.domain)
     fqdn = format("%s.%s.%s", each.key, var.project_name, var.domain)
