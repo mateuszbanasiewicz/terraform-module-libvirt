@@ -14,7 +14,7 @@ locals {
 resource "libvirt_network" "network" {
   name      = local.network_name
   autostart = true
-  mode      = "nat"
+  mode      = "route"
   bridge    = local.network_bridge
   domain    = local.network_domain
   addresses = [var.network_cidr]
