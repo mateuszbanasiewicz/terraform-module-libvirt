@@ -1,5 +1,5 @@
 module "k8s" {
-  source = "git@github.com:maban92/terrform-module-libvirt.git"
+  source = "../"
 
   network_cidr    = "10.12.12.0/24"
   project_name    = "k8s"
@@ -9,18 +9,18 @@ module "k8s" {
   vms = {
     master = {
       cpu    = 4,
-      memory = 2048,
-      hostID = 10 
+      memory = 10240,
+      IPaddresses = ["10.12.12.100"]
     }
     node01 = { 
       cpu    = 4,
-      memory = 4096,
-      hostID = 11
+      memory = 10240,
+      IPaddresses = ["10.12.12.101"]
     }
     node02 = {
       cpu    = 4,
-      memory = 4096,
-      hostID = 12
+      memory = 10240,
+      IPaddresses = ["10.12.12.102"]
     }
   }
 }
