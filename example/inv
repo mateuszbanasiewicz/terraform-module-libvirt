@@ -43,6 +43,11 @@ class CloudInventory(object):
                             self.inventoryStructure['_meta']['hostvars'].update({fqdn_host: {}})
                             self.inventoryStructure['_meta']['hostvars'][fqdn_host].update({ 'ansible_ssh_host': vm_param["IPaddresses"][0], 'ansible_host': vm_param["IPaddresses"][0], 'ansible_ssh_user': 'root', 'base_image': module_params["base_image"], 'domain': module_params["domain"], 'project': module_name })
                             self.inventoryStructure['_meta']['hostvars'][fqdn_host].update(vm_param['ansible_variables'])
+
+                            if 'ansible_groups' in vm_param and vm_param['ansible_groups']:
+                                for group in vm_param['ansible_groups']:
+                                    self.inventoryStructure.setdefault(group, {'hosts': []})['hosts'].append(fqdn_host)
+
         return self.inventoryStructure
 
 

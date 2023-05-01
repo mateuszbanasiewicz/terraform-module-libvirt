@@ -18,18 +18,21 @@ module "k8s" {
       ansible_variables = {
         "aaa" = false
       }
+      ansible_groups = ["kube_control_plane", "etcd"]
     }
     node01 = { 
       cpu    = 4,
       memory = 10240,
       IPaddresses = ["10.12.12.101"]
       ansible_variables = {}
+      ansible_groups = ["kube_node"]
     }
     node02 = {
       cpu    = 4,
       memory = 10240,
       IPaddresses = ["10.12.12.102"]
       ansible_variables = {}
+      ansible_groups = ["kube_node"]
     }
   }
 }
