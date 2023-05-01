@@ -8,7 +8,7 @@ locals {
   network_domain      = format("%s.%s", var.project_name, var.domain)
   pool_name           = format("tf--%s", var.project_name)
   pool_path           = format("/var/lib/libvirt/images/%s", var.project_name)
-  volume_source_path  = format("/var/lib/libvirt/template/%s", var.template)
+  volume_source_path  = format("/var/lib/libvirt/template/%s", var.base_image)
 }
 
 resource "libvirt_network" "network" {
@@ -86,6 +86,9 @@ resource "libvirt_domain" "domain_master" {
     type        = "pty"
     target_type = "serial"
     target_port = "0"
+  }
+  graphics {
+    type        = "vnc"
   }
 }
 

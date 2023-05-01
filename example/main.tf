@@ -3,24 +3,33 @@ module "k8s" {
 
   network_cidr    = "10.12.12.0/24"
   project_name    = "k8s"
-  template        = "rhel-8.5-x86_64-kvm-50g.qcow2"
-  domain          = "lab.local"
+  base_image      = "rhel-8.5-x86_64-kvm-50g.qcow2"
+  domain          = "edu.local"
+
+  ansible_variables = {
+    "bbb" = "siema"
+  }
 
   vms = {
     master = {
       cpu    = 4,
       memory = 10240,
       IPaddresses = ["10.12.12.100"]
+      ansible_variables = {
+        "aaa" = false
+      }
     }
     node01 = { 
       cpu    = 4,
       memory = 10240,
       IPaddresses = ["10.12.12.101"]
+      ansible_variables = {}
     }
     node02 = {
       cpu    = 4,
       memory = 10240,
       IPaddresses = ["10.12.12.102"]
+      ansible_variables = {}
     }
   }
 }

@@ -1,0 +1,61 @@
+#!/usr/bin/env python
+
+import argparse
+import json
+import hcl2
+
+class CloudInventory(object):
+    inventoryStructure = {"_meta": {"hostvars": {}}, "all": {"children": []}}
+
+    def parse_hcl_file(self, file_path):
+        with open(file_path, 'r') as f:
+            hcl_str = f.read()
+            hcl_obj = hcl2.loads(hcl_str)
+            return hcl_obj
+
+    def __init__(self):
+
+        self.inventory = {}
+        self.read_cli_args()
+
+        # Called with `--list`.
+        if self.args.list:
+            self.inventory = self.prepareinventoryStructure()
+        # Called with `--host [hostname]`.
+        elif self.args.host:
+            self.inventory = self.prepareinventoryStructure()
+        else:
+            self.inventory = self.printEmptyInventory()
+
+        print (json.dumps(self.inventory))
+
+    def prepareinventoryStructure(self):
+        main_tf = self.parse_hcl_file("main.tf")
+        for module in main_tf['module']:
+            for module_name, module_params in module.items():
+                self.inventoryStructure.setdefault('all', {'children': []})['children'].append(module_name)
+                for module_param_key, module_param_value in module_params.items():
+                    if "vms" == module_param_key:
+                        for vm_name, vm_param in module_param_value.items():
+                            fqdn_host = f"{vm_name}.{module_params['domain']}"
+                            self.inventoryStructure.setdefault(module_name, {'hosts': [], 'vars': {}})['hosts'].append(fqdn_host)
+                            self.inventoryStructure[module_name]['vars'].update(module_params['ansible_variables'])
+                            self.inventoryStructure['_meta']['hostvars'].update({fqdn_host: {}})
+                            self.inventoryStructure['_meta']['hostvars'][fqdn_host].update({ 'ansible_ssh_host': vm_param["IPaddresses"][0], 'ansible_host': vm_param["IPaddresses"][0], 'ansible_ssh_user': 'root', 'base_image': module_params["base_image"], 'domain': module_params["domain"], 'project': module_name })
+                            self.inventoryStructure['_meta']['hostvars'][fqdn_host].update(vm_param['ansible_variables'])
+        return self.inventoryStructure
+
+
+    # Empty inventory
+    def printEmptyInventory(self):
+        return {"_meta": {"hostvars": {}}, "all": {"children": []}}
+
+    # Read the command line args passed to the script.
+    def read_cli_args(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--list', action = 'store_true')
+        parser.add_argument('--host', action = 'store')
+        self.args = parser.parse_args()
+
+if __name__ == "__main__":
+    CloudInventory()

@@ -8,7 +8,7 @@ variable "project_name" {
   nullable = false
 }
 
-variable "template" {
+variable "base_image" {
   type   = string
   nullable = false
 }
@@ -20,5 +20,10 @@ variable "vms" {
 
 variable "domain" {
   type = string
+  nullable = false
+}
+
+variable "ansible_variables" {
+  type = map
   nullable = false
 }
