@@ -3,18 +3,18 @@ provider "libvirt" {
 }
 
 locals {
-  network_name        = format("tf--%s_%s", var.project_name, replace(replace(var.network_cidr, ".", "-"), "/","--"))
-  network_bridge      = format("tf--%s", var.project_name)
-  network_domain      = format("%s.%s", var.project_name, var.domain)
-  pool_name           = format("tf--%s", var.project_name)
-  pool_path           = format("/var/lib/libvirt/images/%s", var.project_name)
+  network_name        = format("tf--%s_%s", var.project_id, replace(replace(var.network_cidr, ".", "-"), "/","--"))
+  network_bridge      = format("tf--%s", var.project_id)
+  network_domain      = format("%s.%s", var.project_id, var.domain)
+  pool_name           = format("tf--%s", var.project_id)
+  pool_path           = format("/var/lib/libvirt/images/%s", var.project_id)
   volume_source_path  = format("/var/lib/libvirt/template/%s", var.base_image)
 }
 
 resource "libvirt_network" "network" {
   name      = local.network_name
   autostart = true
-  mode      = "route"
+  mode      = "nat"
   bridge    = local.network_bridge
   domain    = local.network_domain
   addresses = [var.network_cidr]
@@ -24,7 +24,7 @@ resource "libvirt_network" "network" {
       address = "8.8.8.8"
     }
     hosts {
-      hostname = format("xeon.%s.%s", var.project_name, var.domain)
+      hostname = format("xeon.%s.%s", var.project_id, var.domain)
       ip = "192.168.1.199"
     }
   }
@@ -37,8 +37,8 @@ data "template_file" "cloudinit_cfg_file" {
   for_each  = var.vms
   template = file("${path.module}/cloud-init/config.cfg")
   vars = {
-    hostname = format("%s.%s.%s", each.key, var.project_name, var.domain)
-    fqdn = format("%s.%s.%s", each.key, var.project_name, var.domain)
+    hostname = format("%s.%s.%s", each.key, var.project_id, var.domain)
+    fqdn = format("%s.%s.%s", each.key, var.project_id, var.domain)
   }
 }
 
@@ -50,14 +50,14 @@ resource "libvirt_pool" "pool" {
 
 resource "libvirt_cloudinit_disk" "cloudinit_disk" {
   for_each       = var.vms
-  name           = format("tf--%s_%s-seed.iso", var.project_name, each.key)
+  name           = format("tf--%s_%s-seed.iso", var.project_id, each.key)
   user_data      = data.template_file.cloudinit_cfg_file[each.key].rendered
   pool           = libvirt_pool.pool.name
 }
 
 resource "libvirt_volume" "volume" {
   for_each   = var.vms
-  name       = format("tf--%s_%s-boot.gcow2", var.project_name, each.key)
+  name       = format("tf--%s_%s-boot.gcow2", var.project_id, each.key)
   pool       = libvirt_pool.pool.name
   source     = local.volume_source_path
   format     = "qcow2"
@@ -65,7 +65,7 @@ resource "libvirt_volume" "volume" {
 
 resource "libvirt_domain" "domain_master" {
   for_each  = var.vms
-  name      = format("tf--%s_%s_ip_%s", var.project_name, each.key, replace(each.value.IPaddresses[0], ".", "-"))
+  name      = format("tf--%s_%s_ip_%s", var.project_id, each.key, replace(each.value.IPaddresses[0], ".", "-"))
   memory    = each.value.memory
   vcpu      = each.value.cpu
 
@@ -74,7 +74,7 @@ resource "libvirt_domain" "domain_master" {
   network_interface {
     network_id     = libvirt_network.network.id
     addresses      = each.value.IPaddresses
-    hostname       = format("%s.%s.%s", each.key, var.project_name, var.domain)
+    hostname       = format("%s.%s.%s", each.key, var.project_id, var.domain)
   }
 
   disk {

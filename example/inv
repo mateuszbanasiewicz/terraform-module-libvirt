@@ -30,14 +30,14 @@ class CloudInventory(object):
         print (json.dumps(self.inventory))
 
     def prepareinventoryStructure(self):
-        main_tf = self.parse_hcl_file("main.tf")
+        main_tf = self.parse_hcl_file("/root/terraform-module-libvirt/example/main.tf")
         for module in main_tf['module']:
             for module_name, module_params in module.items():
                 self.inventoryStructure.setdefault('all', {'children': []})['children'].append(module_name)
                 for module_param_key, module_param_value in module_params.items():
                     if "vms" == module_param_key:
                         for vm_name, vm_param in module_param_value.items():
-                            fqdn_host = f"{vm_name}.{module_params['domain']}"
+                            fqdn_host = f"{vm_name}.{module_params['project_id']}.{module_params['domain']}"
                             self.inventoryStructure.setdefault(module_name, {'hosts': [], 'vars': {}})['hosts'].append(fqdn_host)
                             self.inventoryStructure[module_name]['vars'].update(module_params['ansible_variables'])
                             self.inventoryStructure['_meta']['hostvars'].update({fqdn_host: {}})

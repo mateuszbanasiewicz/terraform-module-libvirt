@@ -3,7 +3,7 @@ variable "network_cidr" {
   nullable = false
 }
 
-variable "project_name" {
+variable "project_id" {
   type     = string
   nullable = false
 }
