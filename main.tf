@@ -8,13 +8,13 @@ locals {
   network_domain      = format("%s.%s", var.project_id, var.domain)
   pool_name           = format("tf--%s", var.project_id)
   pool_path           = format("/var/lib/libvirt/images/%s", var.project_id)
-  volume_source_path  = format("/var/lib/libvirt/template/%s", var.base_image)
+  volume_source_path  = format("/var/lib/libvirt/templates/%s", var.base_image)
 }
 
 resource "libvirt_network" "network" {
   name      = local.network_name
   autostart = true
-  mode      = "nat"
+  mode      = "route"
   bridge    = local.network_bridge
   domain    = local.network_domain
   addresses = [var.network_cidr]
@@ -25,7 +25,7 @@ resource "libvirt_network" "network" {
     }
     hosts {
       hostname = format("xeon.%s.%s", var.project_id, var.domain)
-      ip = "192.168.1.199"
+      ip = "192.168.1.58"
     }
   }
   dhcp {
@@ -39,6 +39,9 @@ data "template_file" "cloudinit_cfg_file" {
   vars = {
     hostname = format("%s.%s.%s", each.key, var.project_id, var.domain)
     fqdn = format("%s.%s.%s", each.key, var.project_id, var.domain)
+    ip   = each.value.IPaddresses[0]
+    mask = var.network_mask
+    gw   = var.network_gateway
   }
 }
 
@@ -75,6 +78,7 @@ resource "libvirt_domain" "domain_master" {
     network_id     = libvirt_network.network.id
     addresses      = each.value.IPaddresses
     hostname       = format("%s.%s.%s", each.key, var.project_id, var.domain)
+    mac            = format("52:54:%s:%s:%s:%s",format("%02x", tonumber(split(".", each.value.IPaddresses[0])[0])), format("%02x", tonumber(split(".", each.value.IPaddresses[0])[1])),format("%02x", tonumber(split(".", each.value.IPaddresses[0])[2])),format("%02x", tonumber(split(".", each.value.IPaddresses[0])[3])))
   }
 
   disk {
@@ -90,7 +94,19 @@ resource "libvirt_domain" "domain_master" {
   graphics {
     type        = "vnc"
   }
+
 }
+
+resource "null_resource" "redhat" {
+
+  provisioner "local-exec" {
+    command = "sleep 60; ansible -T 120 -i inv all -m redhat_subscription -a \"state=present  username=$RHU password=$RHP auto_attach=true\""
+    on_failure = continue
+
+  }
+
+}
+
 
 terraform {
   required_version = ">= 0.12"

@@ -27,3 +27,13 @@ variable "ansible_variables" {
   type = map
   nullable = false
 }
+
+variable "network_mask" {
+  type     = string
+  nullable = false
+}
+
+variable "network_gateway" {
+  type     = string
+  nullable = false
+}

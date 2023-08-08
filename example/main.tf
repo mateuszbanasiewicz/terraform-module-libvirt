@@ -2,8 +2,10 @@ module "k8s" {
   source = "../"
 
   network_cidr    = "10.12.12.0/24"
+  network_mask    = "24"
+  network_gateway = "10.12.12.1"
   project_id      = "c1d"
-  base_image      = "rhel-8.5-x86_64-kvm-50g.qcow2"
+  base_image      = "rhel-8.8-x86_64-kvm.qcow2"
   domain          = "edu.local"
 
   ansible_variables = {
