@@ -2,6 +2,16 @@ provider "libvirt" {
   uri = "qemu:///system"
 }
 
+provider "dns" {
+  update {
+    server        = "192.168.1.58"
+    key_name      = "tsig-key."
+    key_algorithm = "hmac-sha256"
+    key_secret    = "VESV7MMrTI4/BWWC0YkF+G/m1+FggII0vK/oEekPtZA="
+  }
+}
+
+
 locals {
   network_name        = format("tf--%s_%s", var.project_id, replace(replace(var.network_cidr, ".", "-"), "/","--"))
   network_bridge      = format("tf--%s", var.project_id)
@@ -107,6 +117,50 @@ resource "null_resource" "redhat" {
 
 }
 
+resource "null_resource" "bind" {
+
+  provisioner "local-exec" {
+    working_dir = "${path.module}"
+    command     = "ansible-playbook bind9-update-playbook.yaml --extra-vars domain=$DOMAIN"
+    environment = {
+      DOMAIN    = local.network_domain
+    }
+    on_failure  = continue
+  }
+
+}
+
+resource "dns_a_record_set" "gateway" {
+  zone      = format("%s.", local.network_domain)
+  name      = "xeon"
+  addresses = [var.network_gateway]
+  ttl = 300
+  depends_on = [
+    null_resource.bind
+  ]
+}
+
+resource "dns_a_record_set" "vms" {
+  for_each  = var.vms
+  zone      = format("%s.", local.network_domain)
+  name      = each.key
+  addresses = each.value.IPaddresses
+  ttl = 300
+  depends_on = [
+    null_resource.bind
+  ]
+}
+
+resource "dns_a_record_set" "dns_records" {
+  for_each  = var.dns_records
+  zone      = format("%s.", local.network_domain)
+  name      = each.key
+  addresses = each.value
+  ttl = 300
+  depends_on = [
+    null_resource.bind
+  ]
+}
 
 terraform {
   required_version = ">= 0.12"

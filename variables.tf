@@ -37,3 +37,9 @@ variable "network_gateway" {
   type     = string
   nullable = false
 }
+
+variable "dns_records" {
+  type     = map
+  nullable = false
+}
+

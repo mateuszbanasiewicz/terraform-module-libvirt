@@ -1,0 +1,26 @@
+---
+- name: Aktualizacja pliku named.conf
+  hosts: localhost
+  become: yes  # Upewnij się, że masz uprawnienia do edycji pliku /etc/named.conf.
+  tasks:
+  - copy:
+      src: "/etc/named/zones/named.localhost"
+      dest: "/etc/named/zones/db.{{ domain }}"
+      remote_src: true
+
+  - name: Dodaj konfigurację strefy do /etc/named.conf
+    blockinfile:
+      path: /etc/named/configs/named.edu.local.zones
+      marker: "# DOMAIN: {{ domain }}"
+      block: |
+        zone "{{ domain }}" IN {
+          type master;
+          file "/etc/named/zones/db.{{ domain }}";
+          update-policy {
+            grant tsig-key zonesub any;
+          };
+        };
+
+  - systemd_service:
+      name: named
+      state: reloaded
