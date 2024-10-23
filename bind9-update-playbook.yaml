@@ -3,15 +3,24 @@
   hosts: localhost
   become: yes  # Upewnij się, że masz uprawnienia do edycji pliku /etc/named.conf.
   tasks:
+  - file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+    - "/etc/named/zones/db.{{ domain }}"
+    - "/etc/named/zones/db.{{ domain }}.jnl"
   - copy:
       src: "/etc/named/zones/named.localhost"
       dest: "/etc/named/zones/db.{{ domain }}"
+      owner: "named"
+      group: "named"
+      mode: "0644"
       remote_src: true
 
   - name: Dodaj konfigurację strefy do /etc/named.conf
     blockinfile:
       path: /etc/named/configs/named.edu.local.zones
-      marker: "# DOMAIN: {{ domain }}"
+      marker: "# <<<------ {mark} DOMAIN: {{ domain }}"
       block: |
         zone "{{ domain }}" IN {
           type master;
