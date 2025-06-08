@@ -10,7 +10,8 @@ variable "project_id" {
 
 variable "base_image" {
   type   = string
-  nullable = false
+  default  = null
+  nullable = true
 }
 
 variable "vms" {
@@ -43,3 +44,11 @@ variable "dns_records" {
   nullable = false
 }
 
+variable "register_redhat_subscription" {
+  type     = bool
+  default  = true
+}
+variable "cloud_init" {
+  type    = bool
+  default = true
+}

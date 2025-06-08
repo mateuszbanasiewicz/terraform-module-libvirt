@@ -18,7 +18,6 @@ locals {
   network_domain      = format("%s.%s", var.project_id, var.domain)
   pool_name           = format("tf--%s", var.project_id)
   pool_path           = format("/var/lib/libvirt/images/%s", var.project_id)
-  volume_source_path  = format("/var/lib/libvirt/templates/%s", var.base_image)
 }
 
 resource "libvirt_network" "network" {
@@ -62,7 +61,7 @@ resource "libvirt_pool" "pool" {
 }
 
 resource "libvirt_cloudinit_disk" "cloudinit_disk" {
-  for_each       = var.vms
+  for_each       = var.cloud_init ? var.vms : {}
   name           = format("tf--%s_%s-seed.iso", var.project_id, each.key)
   user_data      = data.template_file.cloudinit_cfg_file[each.key].rendered
   pool           = libvirt_pool.pool.name
@@ -72,8 +71,9 @@ resource "libvirt_volume" "volume" {
   for_each   = var.vms
   name       = format("tf--%s_%s-boot.gcow2", var.project_id, each.key)
   pool       = libvirt_pool.pool.name
-  source     = local.volume_source_path
+  source     = try(var.base_image != null ? format("/var/lib/libvirt/templates/%s", var.base_image) : format("/var/lib/libvirt/templates/%s", each.value.base_image), null)
   format     = "qcow2"
+  size       = try(var.base_image != null ? null : (lookup(each.value, "base_image", null) != null ? null : 53687091200), 53687091200)
 }
 
 resource "libvirt_domain" "domain_master" {
@@ -82,7 +82,11 @@ resource "libvirt_domain" "domain_master" {
   memory    = each.value.memory
   vcpu      = each.value.cpu
 
-  cloudinit = libvirt_cloudinit_disk.cloudinit_disk[each.key].id
+  cpu {
+    mode  = "Broadwell-noTSX-IBRS"
+  }
+
+  cloudinit = var.cloud_init ? libvirt_cloudinit_disk.cloudinit_disk[each.key].id : null
 
   network_interface {
     network_id     = libvirt_network.network.id
@@ -105,10 +109,17 @@ resource "libvirt_domain" "domain_master" {
     type        = "vnc"
   }
 
+  xml {
+    xslt = file("${path.module}/set-cpu-mode.xsl")
+  }
+
 }
 
 resource "null_resource" "redhat" {
-
+  count = var.register_redhat_subscription ? 1 : 0
+  triggers = {
+    domain_id  = join(",", values(libvirt_domain.domain_master)[*].name)
+  }
   provisioner "local-exec" {
     command = "sleep 60; ansible -T 120 -i inv all -m redhat_subscription -a \"state=present  username=$RHU password=$RHP auto_attach=true\""
     on_failure = continue
@@ -118,7 +129,6 @@ resource "null_resource" "redhat" {
 }
 
 resource "null_resource" "bind" {
-
   provisioner "local-exec" {
     working_dir = "${path.module}"
     command     = "ansible-playbook bind9-update-playbook.yaml --extra-vars domain=$DOMAIN"
