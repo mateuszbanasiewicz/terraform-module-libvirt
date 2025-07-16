@@ -32,4 +32,4 @@
 
   - systemd_service:
       name: named
-      state: reloaded
+      state: restarted

@@ -43,12 +43,3 @@ variable "dns_records" {
   type     = map
   nullable = false
 }
-
-variable "register_redhat_subscription" {
-  type     = bool
-  default  = true
-}
-variable "cloud_init" {
-  type    = bool
-  default = true
-}

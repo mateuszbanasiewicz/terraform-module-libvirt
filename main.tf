@@ -43,7 +43,7 @@ resource "libvirt_network" "network" {
 }
 
 data "template_file" "cloudinit_cfg_file" {
-  for_each  = var.vms
+  for_each  = { for k, v in var.vms : k => v if v.cloud_init == true }
   template = file("${path.module}/cloud-init/config.cfg")
   vars = {
     hostname = format("%s.%s.%s", each.key, var.project_id, var.domain)
@@ -57,11 +57,13 @@ data "template_file" "cloudinit_cfg_file" {
 resource "libvirt_pool" "pool" {
   name = local.pool_name
   type = "dir"
-  path = local.pool_path
+  target {
+    path = local.pool_path
+  }
 }
 
 resource "libvirt_cloudinit_disk" "cloudinit_disk" {
-  for_each       = var.cloud_init ? var.vms : {}
+  for_each       = { for k, v in var.vms : k => v if v.cloud_init == true }
   name           = format("tf--%s_%s-seed.iso", var.project_id, each.key)
   user_data      = data.template_file.cloudinit_cfg_file[each.key].rendered
   pool           = libvirt_pool.pool.name
@@ -81,32 +83,49 @@ resource "libvirt_domain" "domain_master" {
   name      = format("tf--%s_%s_ip_%s", var.project_id, each.key, replace(each.value.IPaddresses[0], ".", "-"))
   memory    = each.value.memory
   vcpu      = each.value.cpu
+  autostart = false
+  arch      = "x86_64"
+  cmdline   = []
+  emulator  = "/usr/libexec/qemu-kvm"
 
-  cpu {
-    mode  = "Broadwell-noTSX-IBRS"
-  }
-
-  cloudinit = var.cloud_init ? libvirt_cloudinit_disk.cloudinit_disk[each.key].id : null
+  cloudinit = each.value.cloud_init ? libvirt_cloudinit_disk.cloudinit_disk[each.key].id : null
 
   network_interface {
     network_id     = libvirt_network.network.id
+    network_name   = libvirt_network.network.name
     addresses      = each.value.IPaddresses
+    wait_for_lease = false
     hostname       = format("%s.%s.%s", each.key, var.project_id, var.domain)
-    mac            = format("52:54:%s:%s:%s:%s",format("%02x", tonumber(split(".", each.value.IPaddresses[0])[0])), format("%02x", tonumber(split(".", each.value.IPaddresses[0])[1])),format("%02x", tonumber(split(".", each.value.IPaddresses[0])[2])),format("%02x", tonumber(split(".", each.value.IPaddresses[0])[3])))
+    mac            = format(
+                       "52:54:%s:%s:%s:%s",
+                       upper(format("%02x", tonumber(split(".", each.value.IPaddresses[0])[0]))),
+                       upper(format("%02x", tonumber(split(".", each.value.IPaddresses[0])[1]))),
+                       upper(format("%02x", tonumber(split(".", each.value.IPaddresses[0])[2]))),
+                       upper(format("%02x", tonumber(split(".", each.value.IPaddresses[0])[3])))
+                     )
   }
+
 
   disk {
     volume_id = libvirt_volume.volume[each.key].id
     scsi      = "true"
+    wwn       = "05${substr(sha256(format("%s.%s.%s", each.key, var.project_id, var.domain)), 1, 14)}"
   }
 
   console {
     type        = "pty"
+#    target_type = "virtio"
     target_type = "serial"
     target_port = "0"
   }
+
   graphics {
     type        = "vnc"
+  #  listen_type = "address"
+  }
+
+  video {
+    type = "vga"
   }
 
   xml {
@@ -116,12 +135,11 @@ resource "libvirt_domain" "domain_master" {
 }
 
 resource "null_resource" "redhat" {
-  count = var.register_redhat_subscription ? 1 : 0
   triggers = {
     domain_id  = join(",", values(libvirt_domain.domain_master)[*].name)
   }
   provisioner "local-exec" {
-    command = "sleep 60; ansible -T 120 -i inv all -m redhat_subscription -a \"state=present  username=$RHU password=$RHP auto_attach=true\""
+    command = "sleep 60; ansible -T 120 -i inv redhat_subscription  -m redhat_subscription -a \"state=present  username=$RHU password=$RHP auto_attach=true\""
     on_failure = continue
 
   }
