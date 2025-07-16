@@ -88,6 +88,10 @@ resource "libvirt_domain" "domain_master" {
   cmdline   = []
   emulator  = "/usr/libexec/qemu-kvm"
 
+  boot_device {
+    dev = ["hd", "network"]
+  }
+
   cloudinit = each.value.cloud_init ? libvirt_cloudinit_disk.cloudinit_disk[each.key].id : null
 
   network_interface {
@@ -114,14 +118,13 @@ resource "libvirt_domain" "domain_master" {
 
   console {
     type        = "pty"
-#    target_type = "virtio"
-    target_type = "serial"
+    target_type = "virtio"
     target_port = "0"
   }
 
   graphics {
     type        = "vnc"
-  #  listen_type = "address"
+    listen_type = "address"
   }
 
   video {
